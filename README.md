@@ -90,7 +90,7 @@ A modern, full-stack web application for AI-powered object detection using YOLO 
 #### 1. Clone the Repository
 ```bash
 git clone <https://github.com/DebdootManna/Yolo-App>
-cd "Yolo App"
+cd "Yolo-App"
 ```
 
 #### 2. Backend Setup
@@ -505,6 +505,6 @@ If you encounter any issues or have questions:
 
 ---
 
-**Built with ❤️ by the YOLO Detection Team**
+**Built with ❤️ by the Debdoot Manna**
 
 For more information, visit our [website](https://your-website.com) or follow us on [GitHub](https://github.com/your-username/yolo-detection).
