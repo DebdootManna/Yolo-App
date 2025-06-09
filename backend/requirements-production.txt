@@ -1,0 +1,30 @@
+# Production Requirements - Minimal Dependencies
+# For production deployment with optimized package sizes
+
+# Core FastAPI dependencies
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+pydantic==2.4.2
+
+# Computer Vision and AI - Core packages only
+opencv-python-headless==4.10.0.84
+torch==2.7.1
+torchvision==0.19.1
+ultralytics==8.3.0
+numpy==1.26.4
+Pillow==10.4.0
+
+# Essential utilities
+python-dotenv==1.0.1
+aiofiles==24.1.0
+
+# Production server
+gunicorn==23.0.0
+
+# Async support
+anyio==4.7.0
+
+# For CPU-only deployment (uncomment and comment GPU versions above)
+# torch==2.7.1+cpu --index-url https://download.pytorch.org/whl/cpu
+# torchvision==0.19.1+cpu --index-url https://download.pytorch.org/whl/cpu

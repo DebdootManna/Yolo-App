@@ -1,0 +1,26 @@
+# Minimal Requirements - Core functionality only
+# For quick setup and testing
+
+# Core FastAPI dependencies
+fastapi>=0.100.0
+uvicorn[standard]>=0.20.0
+python-multipart>=0.0.6
+pydantic>=2.0.0
+
+# Computer Vision and AI - Latest compatible versions
+opencv-python
+torch
+torchvision
+ultralytics
+numpy
+Pillow
+
+# Essential utilities
+python-dotenv
+aiofiles
+
+# HTTP client
+requests
+
+# Async support
+anyio

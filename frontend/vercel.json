@@ -1,0 +1,104 @@
+{
+  "version": 2,
+  "name": "yolo-detection-frontend",
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "https://your-backend-api.railway.app/api/$1",
+      "headers": {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization"
+      }
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, PUT, DELETE, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type, Authorization"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=()"
+        }
+      ]
+    }
+  ],
+  "env": {
+    "VITE_API_BASE_URL": "@vite_api_base_url",
+    "VITE_APP_TITLE": "@vite_app_title",
+    "VITE_APP_VERSION": "@vite_app_version"
+  },
+  "build": {
+    "env": {
+      "VITE_API_BASE_URL": "https://your-backend-api.railway.app",
+      "VITE_APP_TITLE": "YOLO Object Detection",
+      "VITE_APP_VERSION": "1.0.0",
+      "VITE_MAX_FILE_SIZE": "50000000",
+      "VITE_SUPPORTED_IMAGE_TYPES": "image/jpeg,image/png,image/webp,image/bmp",
+      "VITE_SUPPORTED_VIDEO_TYPES": "video/mp4,video/avi,video/mov,video/mkv",
+      "VITE_ENABLE_VIDEO_UPLOAD": "true",
+      "VITE_ENABLE_BATCH_PROCESSING": "true",
+      "VITE_DEFAULT_CONF_THRESHOLD": "0.5",
+      "VITE_DEFAULT_IOU_THRESHOLD": "0.45",
+      "VITE_ENABLE_DEBUG": "false",
+      "VITE_SHOW_API_LOGS": "false"
+    }
+  },
+  "functions": {
+    "app/api/**/*.js": {
+      "maxDuration": 30
+    }
+  },
+  "regions": ["iad1"],
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "https://your-backend-api.railway.app/$1"
+    }
+  ]
+}
