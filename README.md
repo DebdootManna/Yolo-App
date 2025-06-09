@@ -38,10 +38,10 @@ A modern, full-stack web application for AI-powered object detection using YOLO 
 
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   React Frontend │    │  FastAPI Backend │    │  YOLO Models    │
+│   React Frontend│    │  FastAPI Backend │    │  YOLO Models    │
 │                 │    │                  │    │                 │
 │ • File Upload   │◄──►│ • REST API       │◄──►│ • YOLOv8/9/10/11│
-│ • Results View  │    │ • Object Detection│    │ • GPU/CPU       │
+│ • Results View  │    │ • Obj Detection  │    │ • GPU/CPU       │
 │ • Settings UI   │    │ • File Processing│    │ • Pre-trained   │
 └─────────────────┘    └──────────────────┘    └─────────────────┘
         │                        │
