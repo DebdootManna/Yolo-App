@@ -89,11 +89,6 @@
       "VITE_SHOW_API_LOGS": "false"
     }
   },
-  "functions": {
-    "app/api/**/*.js": {
-      "maxDuration": 30
-    }
-  },
   "regions": ["iad1"],
   "rewrites": [
     {
