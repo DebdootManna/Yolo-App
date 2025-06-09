@@ -90,7 +90,7 @@ A modern, full-stack web application for AI-powered object detection using YOLO 
 #### 1. Clone the Repository
 ```bash
 git clone <https://github.com/DebdootManna/Yolo-App>
-cd "Yolo App"
+cd "Yolo-App"
 ```
 
 #### 2. Backend Setup
