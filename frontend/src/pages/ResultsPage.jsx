@@ -19,7 +19,8 @@ import {
   Share2,
   Copy,
   Trash2,
-  RefreshCw
+  RefreshCw,
+  FileText
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -113,6 +114,23 @@ const ResultsPage = () => {
     } catch (error) {
       console.error('Download failed:', error);
       toast.error('Download failed');
+    }
+  };
+
+  // Handle download labels
+  const handleDownloadLabels = async () => {
+    if (!results?.labels_txt_url) {
+      toast.error('No labels file available for download');
+      return;
+    }
+    try {
+      const url = apiService.getOutputUrl(results.labels_txt_url.replace('/outputs/', ''));
+      const filename = `detection_labels_${Date.now()}.txt`;
+      uiUtils.downloadFile(url, filename);
+      toast.success('Labels download started');
+    } catch (error) {
+      console.error('Labels download failed:', error);
+      toast.error('Labels download failed');
     }
   };
 

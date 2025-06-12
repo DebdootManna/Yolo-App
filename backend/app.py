@@ -216,6 +216,16 @@ async def predict(
         # Save annotated image
         cv2.imwrite(output_path, annotated_image)
         
+        # Save labels to .txt file
+        labels_filename = f"{file_id}_labels.txt"
+        labels_path = os.path.join("outputs", labels_filename)
+        with open(labels_path, "w") as f:
+            for det in detections:
+                class_name = det["class"]
+                x1, y1, x2, y2 = det["bbox"]
+                conf = det["confidence"]
+                f.write(f"{class_name} {x1:.2f} {y1:.2f} {x2:.2f} {y2:.2f} {conf:.4f}\n")
+        
         # Get image dimensions
         height, width = image.shape[:2]
         
@@ -233,6 +243,7 @@ async def predict(
                 "filename": file.filename
             },
             "output_image_url": f"/outputs/{output_filename}",
+            "labels_txt_url": f"/outputs/{labels_filename}",
             "parameters": {
                 "conf_threshold": conf_threshold,
                 "iou_threshold": iou_threshold,
@@ -396,21 +407,145 @@ async def update_model(
 ):
     try:
         global detector
-        detector = YOLODetector(model_name, conf_threshold, iou_threshold)
-        
+        # Check if model exists in models/ directory
+        model_path = os.path.join("models", model_name)
+        classes_path = os.path.join("models", os.path.splitext(model_name)[0] + ".txt")
+        if os.path.exists(model_path) and os.path.exists(classes_path):
+            # Load custom classes
+            with open(classes_path, "r") as f:
+                custom_classes = [line.strip() for line in f if line.strip()]
+            class CustomYOLODetector(YOLODetector):
+                def __init__(self, model_name, conf_threshold=0.5, iou_threshold=0.45, class_names=None):
+                    self.model_name = model_name
+                    self.conf_threshold = conf_threshold
+                    self.iou_threshold = iou_threshold
+                    self.model = None
+                    self.class_names = class_names if class_names else COCO_CLASSES
+                    self.device = "cuda" if torch.cuda.is_available() else "cpu"
+                    self.load_model()
+            detector = CustomYOLODetector(model_path, conf_threshold, iou_threshold, class_names=custom_classes)
+            used_classes = custom_classes
+            used_model = model_path
+        else:
+            # Use predefined model and COCO classes
+            detector = YOLODetector(model_name, conf_threshold, iou_threshold)
+            used_classes = COCO_CLASSES
+            used_model = model_name
         return {
             "success": True,
             "model_name": model_name,
             "conf_threshold": conf_threshold,
             "iou_threshold": iou_threshold,
             "device": detector.device,
-            "message": "Model updated successfully"
+            "total_classes": len(used_classes),
+            "message": "Model updated successfully",
+            "custom_model": os.path.exists(model_path) and os.path.exists(classes_path)
         }
-        
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Model update failed: {str(e)}")
 
-# ...existing code...
+@app.post("/upload_model")
+async def upload_model(
+    model_file: UploadFile = File(...),
+    classes_file: UploadFile = File(...)
+):
+    # Validate file types
+    if not model_file.filename.endswith(".pt"):
+        raise HTTPException(status_code=400, detail="Model file must be a .pt file")
+    if not classes_file.filename.endswith(".txt"):
+        raise HTTPException(status_code=400, detail="Classes file must be a .txt file")
+
+    # Save model file
+    model_save_path = os.path.join("models", model_file.filename)
+    with open(model_save_path, "wb") as f:
+        shutil.copyfileobj(model_file.file, f)
+
+    # Save classes file
+    classes_save_path = os.path.join("models", classes_file.filename)
+    with open(classes_save_path, "wb") as f:
+        shutil.copyfileobj(classes_file.file, f)
+
+    # Read class names from classes.txt
+    try:
+        with open(classes_save_path, "r") as f:
+            custom_classes = [line.strip() for line in f if line.strip()]
+        if not custom_classes:
+            raise ValueError("No classes found in classes.txt")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to read classes.txt: {str(e)}")
+
+    # Update detector to use the new model and classes
+    global detector
+    class CustomYOLODetector(YOLODetector):
+        def __init__(self, model_name, conf_threshold=0.5, iou_threshold=0.45, class_names=None):
+            self.model_name = model_name
+            self.conf_threshold = conf_threshold
+            self.iou_threshold = iou_threshold
+            self.model = None
+            self.class_names = class_names if class_names else COCO_CLASSES
+            self.device = "cuda" if torch.cuda.is_available() else "cpu"
+            self.load_model()
+    detector = CustomYOLODetector(model_save_path, class_names=custom_classes)
+
+    return {
+        "success": True,
+        "model_name": model_file.filename,
+        "classes_file": classes_file.filename,
+        "total_classes": len(custom_classes),
+        "message": "Custom model and classes uploaded and loaded successfully."
+    }
+
+@app.post("/predict_stream")
+async def predict_stream(
+    stream_url: str = Form(...),
+    conf_threshold: float = Form(0.5),
+    iou_threshold: float = Form(0.45),
+    max_frames: int = Form(10)
+):
+    try:
+        # Update detector thresholds
+        detector.conf_threshold = conf_threshold
+        detector.iou_threshold = iou_threshold
+        if detector.model:
+            detector.model.conf = conf_threshold
+            detector.model.iou = iou_threshold
+
+        cap = cv2.VideoCapture(stream_url)
+        if not cap.isOpened():
+            raise HTTPException(status_code=400, detail="Could not open stream. Check the URL and network.")
+
+        frame_detections = []
+        frame_count = 0
+        while frame_count < max_frames:
+            ret, frame = cap.read()
+            if not ret:
+                break
+            detections, _ = detector.detect(frame)
+            frame_detections.append({
+                "frame": frame_count,
+                "detections": detections
+            })
+            frame_count += 1
+        cap.release()
+
+        return {
+            "success": True,
+            "stream_url": stream_url,
+            "frames_processed": frame_count,
+            "detections_per_frame": frame_detections,
+            "total_detections": sum(len(fd["detections"]) for fd in frame_detections),
+            "parameters": {
+                "conf_threshold": conf_threshold,
+                "iou_threshold": iou_threshold,
+                "max_frames": max_frames
+            },
+            "timestamp": datetime.now().isoformat()
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Stream prediction error: {e}")
+        raise HTTPException(status_code=500, detail=f"Stream prediction failed: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

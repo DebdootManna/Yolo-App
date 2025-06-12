@@ -50,6 +50,22 @@ const HomePage = ({ apiHealth }) => {
   const [showSettings, setShowSettings] = useState(false);
   const [maxFrames, setMaxFrames] = useState(30);
 
+  // Add state for model selection and custom model upload
+  const pretrainedModels = [
+    'yolov8n.pt', 'yolov8s.pt', 'yolov8m.pt', 'yolov8l.pt', 'yolov8x.pt',
+    'yolov9c.pt', 'yolov9e.pt'
+  ];
+  const [selectedModel, setSelectedModel] = useState('yolov8n.pt');
+  const [customModelFile, setCustomModelFile] = useState(null);
+  const [customClassesFile, setCustomClassesFile] = useState(null);
+  const [isUploadingModel, setIsUploadingModel] = useState(false);
+
+  // Add state for livestream detection
+  const [livestreamUrl, setLivestreamUrl] = useState('');
+  const [isProcessingStream, setIsProcessingStream] = useState(false);
+  const [streamResults, setStreamResults] = useState(null);
+  const [streamError, setStreamError] = useState(null);
+
   // Load available classes on component mount
   useEffect(() => {
     const loadClasses = async () => {
@@ -205,6 +221,67 @@ const HomePage = ({ apiHealth }) => {
     setSelectedClasses([]);
   };
 
+  // Handle pretrained model selection
+  const handleModelChange = (e) => {
+    setSelectedModel(e.target.value);
+    setCustomModelFile(null);
+    setCustomClassesFile(null);
+  };
+
+  // Handle custom model file input
+  const handleCustomModelFile = (e) => {
+    setCustomModelFile(e.target.files[0] || null);
+  };
+  const handleCustomClassesFile = (e) => {
+    setCustomClassesFile(e.target.files[0] || null);
+  };
+
+  // Apply selected or uploaded model
+  const handleApplyModel = async () => {
+    setIsUploadingModel(true);
+    try {
+      if (customModelFile && customClassesFile) {
+        // Upload custom model and classes
+        await apiService.uploadModel(customModelFile, customClassesFile);
+        toast.success('Custom model uploaded and loaded!');
+        setSelectedModel(customModelFile.name);
+      } else {
+        // Switch to pretrained model
+        await apiService.updateModel(selectedModel, confThreshold, iouThreshold);
+        toast.success(`Switched to model: ${selectedModel}`);
+      }
+      // Optionally reload classes
+      const classesData = await apiService.getClasses();
+      setAvailableClasses(classesData.classes || []);
+      setSelectedClasses([]);
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'Failed to update model');
+    } finally {
+      setIsUploadingModel(false);
+    }
+  };
+
+  // Handle livestream detection
+  const handleLivestreamDetection = async () => {
+    if (!livestreamUrl) {
+      toast.error('Please enter a livestream URL');
+      return;
+    }
+    setIsProcessingStream(true);
+    setStreamResults(null);
+    setStreamError(null);
+    try {
+      const result = await apiService.predictStream(livestreamUrl, confThreshold, iouThreshold, maxFrames);
+      setStreamResults(result);
+      toast.success('Livestream detection completed!');
+    } catch (err) {
+      setStreamError(err?.response?.data?.detail || 'Livestream detection failed');
+      toast.error(err?.response?.data?.detail || 'Livestream detection failed');
+    } finally {
+      setIsProcessingStream(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -217,6 +294,109 @@ const HomePage = ({ apiHealth }) => {
             Upload an image or video to detect and analyze objects using state-of-the-art YOLO models.
             Support for 80+ object classes with real-time processing.
           </p>
+        </div>
+
+        {/* Model Selection & Upload Section */}
+        <div className="card mb-8">
+          <div className="card-header">
+            <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+              <Settings className="w-5 h-5 mr-2" />
+              Model Selection
+            </h2>
+          </div>
+          <div className="card-body space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Pretrained Model</label>
+              <select
+                className="w-full border rounded px-3 py-2"
+                value={selectedModel}
+                onChange={handleModelChange}
+                disabled={isUploadingModel}
+              >
+                {pretrainedModels.map((model) => (
+                  <option key={model} value={model}>{model}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col md:flex-row gap-4 items-center">
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Custom Model (.pt)</label>
+                <input
+                  type="file"
+                  accept=".pt"
+                  onChange={handleCustomModelFile}
+                  disabled={isUploadingModel}
+                  className="w-full"
+                />
+              </div>
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Classes File (classes.txt)</label>
+                <input
+                  type="file"
+                  accept=".txt"
+                  onChange={handleCustomClassesFile}
+                  disabled={isUploadingModel}
+                  className="w-full"
+                />
+              </div>
+            </div>
+            <button
+              className="mt-2 px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700 disabled:opacity-50"
+              onClick={handleApplyModel}
+              disabled={isUploadingModel || (!customModelFile && !selectedModel)}
+            >
+              {isUploadingModel ? 'Applying...' : 'Apply Model'}
+            </button>
+          </div>
+        </div>
+
+        {/* Livestream Detection Section */}
+        <div className="card mb-8">
+          <div className="card-header">
+            <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+              <Play className="w-5 h-5 mr-2" />
+              Livestream Detection
+            </h2>
+          </div>
+          <div className="card-body space-y-4">
+            <input
+              type="text"
+              className="w-full border rounded px-3 py-2"
+              placeholder="Enter livestream URL (e.g. rtsp://...)"
+              value={livestreamUrl}
+              onChange={e => setLivestreamUrl(e.target.value)}
+              disabled={isProcessingStream}
+            />
+            <button
+              className="px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700 disabled:opacity-50"
+              onClick={handleLivestreamDetection}
+              disabled={isProcessingStream || !livestreamUrl}
+            >
+              {isProcessingStream ? 'Detecting...' : 'Detect Livestream'}
+            </button>
+            {isProcessingStream && (
+              <div className="flex items-center space-x-2 text-primary-600">
+                <Loader2 className="animate-spin w-5 h-5" />
+                <span>Processing livestream...</span>
+              </div>
+            )}
+            {streamError && (
+              <div className="text-red-600 text-sm">{streamError}</div>
+            )}
+            {streamResults && (
+              <div className="bg-gray-50 border rounded p-3 mt-2 text-sm max-h-64 overflow-auto">
+                <div className="font-semibold mb-1">Results (first {streamResults.frames_processed} frames):</div>
+                <ul className="list-disc ml-5">
+                  {streamResults.detections_per_frame.map((frame, idx) => (
+                    <li key={idx}>
+                      Frame {frame.frame}: {frame.detections.length} detections
+                    </li>
+                  ))}
+                </ul>
+                <div className="mt-2 text-xs text-gray-500">Total detections: {streamResults.total_detections}</div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Main Content */}
