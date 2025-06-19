@@ -507,4 +507,4 @@ If you encounter any issues or have questions:
 
 **Built with ❤️ by the Debdoot Manna**
 
-For more information, visit our [website](https://your-website.com) or follow us on [GitHub](https://github.com/your-username/yolo-detection).
+For more information, visit our [website](https://www.debdootmanna.me) or follow us on [GitHub](https://github.com/DebdootManna/yolo-app).
